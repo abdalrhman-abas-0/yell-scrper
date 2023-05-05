@@ -178,66 +178,63 @@ def df_builder(search_subject, search_location):
 
 # this part looks for the number of pages available on the scraped site for a
 # given subject and location and adjusts the number of pages_to_scrape accordingly.
-# the response of this page in case of a new scraping process is used to
+# the response of this page in case of a new scraping process will be used to
 # scrape the data for the fist page in the primary stage.
 
-if primary_stage == True or pages_to_scrape > I_P:
-    # input the search_subject into the search_bar
-    search_bar_id = 'search_keyword'
-    search_bar = crawler(url, search_bar_id)
-    search_bar.click()
-    search_bar.send_keys(search_subject)
 
-    # input the search_location into the location_bar
-    location = driver.find_element(By.ID, 'search_location')
-    search_location_0 = location.get_attribute('value')
-    location.click()
-    location.clear()
-    location.send_keys(search_location)
+# input the search_subject into the search_bar
+search_bar_id = 'search_keyword'
+search_bar = crawler(url, search_bar_id)
+search_bar.click()
+search_bar.send_keys(search_subject)
 
-    # pressing the search button in the website to initiate the search
+# input the search_location into the location_bar
+location = driver.find_element(By.ID, 'search_location')
+search_location_0 = location.get_attribute('value')
+location.click()
+location.clear()
+location.send_keys(search_location)
+
+# pressing the search button in the website to initiate the search
+driver.switch_to.default_content()
+find = driver.find_element(
+    By.CSS_SELECTOR, 'button[aria-label="Search now"]')
+ActionChains(driver).move_to_element(find).perform()
+
+try:
+    accept_cookies = WebDriverWait(driver, 20).until(
+        EC.presence_of_element_located(
+            (By.XPATH, '/html/body/div[1]/div/div/div[2]/div/div[2]/button/strong'
+                )
+        )
+    )
+    accept_cookies.click()
     driver.switch_to.default_content()
-    find = driver.find_element(
-        By.CSS_SELECTOR, 'button[aria-label="Search now"]')
-    ActionChains(driver).move_to_element(find).perform()
+except:
+    pass
 
-    try:
-        accept_cookies = WebDriverWait(driver, 20).until(
-            EC.presence_of_element_located(
-                (By.XPATH, '/html/body/div[1]/div/div/div[2]/div/div[2]/button/strong'
-                 )
-            )
+find.click()
+
+# primary search page done
+sleep(5)
+
+# number of available results for a search
+try:
+    # returns the number of results available for a given search
+    search_pages_available_E = WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located(
+            (By.CSS_SELECTOR, 'nav[aria-label="Pagination"]')
         )
-        accept_cookies.click()
-        driver.switch_to.default_content()
-    except:
-        pass
+    )
+    search_pages_available = int(search_pages_available_E.find_elements(
+        By.CSS_SELECTOR, 'a[class="btn btn-grey"]')[-1].text)
+except:
+    # in case of an exception that means that the search 
+    # have only one result page for that search
+    search_pages_available = 1
 
-    find.click()
-
-    # primary search page done
-    sleep(5)
-
-    # %% number of available results for a search
-
-    try:
-        # returns the number of results available for a given search
-        search_pages_available_E = WebDriverWait(driver, 10).until(
-            EC.presence_of_element_located(
-                (By.CSS_SELECTOR, 'nav[aria-label="Pagination"]')
-            )
-        )
-        search_pages_available = int(search_pages_available_E.find_elements(
-            By.CSS_SELECTOR, 'a[class="btn btn-grey"]')[-1].text)
-    except:
-        search_pages_available = 1
-
-    print(f'{search_pages_available} pages available.')
-    site = driver.current_url
-else:
-    # just to stay ahead of the pages to scrape
-    search_pages_available = pages_to_scrape + 10
-    print("page available for the search are more than the pages to scrape !!")
+print(f'{search_pages_available} pages available.')
+site = driver.current_url
 
 pages_to_scrape = list(range(1, pages_to_scrape + 1))
 
@@ -364,7 +361,7 @@ if primary_stage == True or len(pages_to_scrape) > I_P:
                 "Reviews": reviews
                 }
             
-            # replaces empty strings with "Not listed"
+            # replaces empty strings in the result dict with "Not listed"
             for key, value in result.items():
                 if value == '':
                     result[key] = "Not Listed"
