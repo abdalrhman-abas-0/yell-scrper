@@ -17,7 +17,7 @@ Firefox_options.add_argument("--start-maximized")
 # %% Inputs.
 
 pages_to_scrape = 10
-record_file = 'tracker architects in london at 2023-05-05 16.42.25.txt'
+record_file = 'no'
 search_subject = "architects"
 search_location = 'london'
 
@@ -25,6 +25,9 @@ search_location = 'london'
 
 driver = webdriver.Firefox()
 actions = ActionChains(driver)
+
+# changing the directory to yell folder
+os.chdir("yell")
 # %% main variables
 
 # the main page url
