@@ -27,7 +27,12 @@ driver = webdriver.Firefox()
 actions = ActionChains(driver)
 
 # changing the directory to yell folder
-os.chdir("yell")
+# using try and except will not through
+# errors when debugging
+try:
+    os.chdir("yell")
+except:
+    pass
 # %% main variables
 
 # the main page url
@@ -98,13 +103,13 @@ except:
 # %% crawler Function
 
 
-def crawler(site:str, element:str, as_check_url=False):
+def crawler(site: str, element: str, as_check_url: bool):
     """ ensures that the correct page is landed on
     it can be used in to ways:
-    if as_check_url = True:
+    first mode as_check_url = True:
         it will look for the given element and if it's not found 
         it will notify the developer to navigate to the given site
-    if as_check_url = False: 
+    second mode as_check_url = False: 
         it will keeps making requests for the given site until landing
         on the desired page then, it knows that through looking for 
         the given element.
@@ -116,11 +121,14 @@ def crawler(site:str, element:str, as_check_url=False):
     Args:
         site (str): _the url of the desired page.Defaults to "link".
         element (str): the ID or CSS SELECTOR of the element to look for.
+        as_check_url (bool): if True thr function will be ran in 
+            it's first mode and use the site as a check_url.
+
     Returns:
         key_element (selenium.webdriver.remote.webelement.WebElement):
             the element to look for on the page. 
     """
-    if as_check_url != False:
+    if as_check_url == False:
         while True:
             try:
                 driver.get(site)
@@ -160,7 +168,7 @@ def crawler(site:str, element:str, as_check_url=False):
 # %% Data Frame Builder Function
 
 
-def df_builder(search_subject:str, search_location:str):
+def df_builder(search_subject: str, search_location: str):
     """ the DataFrame Builder
     it looks for a saved primary csv file in the "record_file"
     given in the inputs to continue from it, and if it didn't find it
@@ -210,7 +218,7 @@ def df_builder(search_subject:str, search_location:str):
 
 # input the search_subject into the search_bar
 search_bar_id = 'search_keyword'
-search_bar = crawler(url, search_bar_id)
+search_bar = crawler(url, search_bar_id, False)
 search_bar.click()
 search_bar.send_keys(search_subject)
 
