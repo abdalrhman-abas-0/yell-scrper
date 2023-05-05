@@ -27,8 +27,8 @@ driver = webdriver.Firefox()
 actions = ActionChains(driver)
 # %% main variables
 
-# the main page url 
-url ="https://www.yell.com/?utm_source=byc&utm_medium=referral&utm_campaign=top-black-bar" 
+# the main page url
+url = "https://www.yell.com/?utm_source=byc&utm_medium=referral&utm_campaign=top-black-bar"
 
 # the the name of the website being scraped
 website = 'yell'
@@ -56,87 +56,108 @@ build_upon_previous = False
 
 # %% txt tracker File
 
- # if there a record file were given it resets the MAIN variables above to continue upon the previous scraping process,
-# and if record file was given as 'no' it leave them to their default values to start a new scraping process. 
+# if there a record file were given it resets the MAIN variables above to continue upon the previous scraping process,
+# and if record file was given as 'no' it leave them to their default values to start a new scraping process.
 
 if record_file.lower() != 'no':
     txt_tracker = record_file
 else:
-    date_time = str( f'{datetime.datetime.now()}')[:f'{datetime.datetime.now()}'.index('.')].replace(':','.')
+    date_time = str(f'{datetime.datetime.now()}')[
+        :f'{datetime.datetime.now()}'.index('.')].replace(':', '.')
     txt_tracker = f'tracker {search_subject} in {search_location} at {date_time}.txt'
     first_creation = open('./outputs/' + txt_tracker, "w")
     first_creation.close()
-    
+
 try:
-    with open('./outputs/'+ txt_tracker , 'r') as file:
+    with open('./outputs/' + txt_tracker, 'r') as file:
         file = file.readlines()
         '''an txt file which records the progress of the scraping process'''
         for line in file:
-            
+
             # replaces\adds the page number to the url and add one to scrape the next page
             if 'first_search_page' in line:
-                site = line.replace('first_search_page',f"&pageNum={I_P+1}") 
+                site = line.replace('first_search_page', f"&pageNum={I_P+1}")
                 fist_scraped_page = False
-            
+
             elif 'primary.csv' in line:
-                # as every pages saved in it's own csv file the save index and 
+                # as every pages saved in it's own csv file the save index and
                 # the I_P which is the last page scraped successfully are the same
-                p_save_index = I_P = int(re.search(f'(?!{search_location} )\d+',line)[0])
+                p_save_index = I_P = int(
+                    re.search(f'(?!{search_location} )\d+', line)[0])
                 build_upon_previous = True
-                
-            # ensuring that the end result file isn't constructed   
+
+            # ensuring that the end result file isn't constructed
             elif line.strip("\n") == f"{website} {search_subject} in {search_location}.csv":
-                build_upon_previous = False        
+                build_upon_previous = False
 
 except:
     pass
 # %% crawler Function
 
-def crawler(site, element):
-    """requests maker 
-    it keeps making the request for a url until the page is loaded and 
-    the key_element is available in it to insure lading on the desired
-    page and the servers did't redirect the request to another page or 
+
+def crawler(site:str, element:str, as_check_url=False):
+    """ ensures that the correct page is landed on
+    it can be used in to ways:
+    if as_check_url = True:
+        it will look for the given element and if it's not found 
+        it will notify the developer to navigate to the given site
+    if as_check_url = False: 
+        it will keeps making requests for the given site until landing
+        on the desired page then, it knows that through looking for 
+        the given element.
+    in both cases if the servers redirected the program to another page or 
     to a bot detection test, in such case the function will notify the
     developer of a problem as the developer must resolve it manually 
     and enter 'y' in the input box.
-    
+
     Args:
-        site (str): _the url of the desired page.
+        site (str): _the url of the desired page.Defaults to "link".
         element (str): the ID or CSS SELECTOR of the element to look for.
     Returns:
         key_element (selenium.webdriver.remote.webelement.WebElement):
             the element to look for on the page. 
     """
-    
-    while True:
-        try:
-            driver.get(site)
+    if as_check_url != False:
+        while True:
             try:
-                key_element  = WebDriverWait(driver, 20).until(
-                    EC.presence_of_element_located(
-                        (By.CSS_SELECTOR, element)
+                driver.get(site)
+                try:
+                    key_element = WebDriverWait(driver, 20).until(
+                        EC.presence_of_element_located(
+                            (By.CSS_SELECTOR, element)
+                        )
                     )
-                )
+                except:
+                    key_element = WebDriverWait(driver, 20).until(
+                        EC.presence_of_element_located(
+                            (By.ID, element)
+                        )
+                    )
+                sleep(nap)
+                # checking if the page is the requested page
+                if site == driver.current_url:
+                    break
             except:
-                key_element  = WebDriverWait(driver, 20).until(
-                    EC.presence_of_element_located(
-                        (By.ID, element)
-                    )
-                )
-            sleep(nap)
-            # checking if the page is the requested page 
-            if site == driver.current_url:
+                while (input("browser problem please resolve it manually and enter'y'.")).lower() != 'y':
+                    sleep(1)
+    else:
+        while True:
+            try:
+                # the result list of search results available on the page
+                key_element = WebDriverWait(driver, 20).until(
+                    EC.presence_of_all_elements_located(
+                        (By.CSS_SELECTOR, 'div[class="row businessCapsule--mainRow"]')))
                 break
-        except:
-            while (input("browser problem please resolve it manually and enter'y'.")).lower() != 'y':
-                sleep(1)
-                
-    return key_element 
+            except:
+                while (input(f"""browser problem please resolve it manually and ensure that the page url is \n "{site}" \n then enter'y' to continue.""")).lower() != 'y':
+                    sleep(1)
+
+    return key_element
 
 # %% Data Frame Builder Function
 
-def df_builder(search_subject, search_location):
+
+def df_builder(search_subject:str, search_location:str):
     """ the DataFrame Builder
     it looks for a saved primary csv file in the "record_file"
     given in the inputs to continue from it, and if it didn't find it
@@ -153,25 +174,27 @@ def df_builder(search_subject, search_location):
         df_ (pandas.DataFrame): a pandas DataFrame which is save as a csv file.
 
     """
-    with open('./outputs/' + txt_tracker,'r') as file:
-            
-        for line in file:
-            
-            if f'1 primary' in line:
-                df_0 = pd.read_csv('./outputs/' + str(line).strip('\n')) 
-                continue
-                
-            elif 'https://' not in line and 'primary' in line: 
-                df_ = pd.concat([df_0, pd.read_csv('./outputs/' + str(line).strip('\n'))], axis=0, ignore_index= True)    
-                df_0 = df_
-                
-    df_ = df_.drop_duplicates()
-    df_.to_csv('./outputs/' + f"{website} {search_subject} in {search_location}.csv", index= False)
+    with open('./outputs/' + txt_tracker, 'r') as file:
 
-    with open('./outputs/' + txt_tracker,'a') as file:         
+        for line in file:
+
+            if f'1 primary' in line:
+                df_0 = pd.read_csv('./outputs/' + str(line).strip('\n'))
+                continue
+
+            elif 'https://' not in line and 'primary' in line:
+                df_ = pd.concat([df_0, pd.read_csv(
+                    './outputs/' + str(line).strip('\n'))], axis=0, ignore_index=True)
+                df_0 = df_
+
+    df_ = df_.drop_duplicates()
+    df_.to_csv('./outputs/' +
+               f"{website} {search_subject} in {search_location}.csv", index=False)
+
+    with open('./outputs/' + txt_tracker, 'a') as file:
         file.write('\n')
-        file.write (f"{website} {search_subject} in {search_location}.csv") 
-            
+        file.write(f"{website} {search_subject} in {search_location}.csv")
+
     return df_
 
 # %% Navigating To The Search Results & Getting The Number Of Available Pages.
@@ -205,7 +228,7 @@ try:
     accept_cookies = WebDriverWait(driver, 20).until(
         EC.presence_of_element_located(
             (By.XPATH, '/html/body/div[1]/div/div/div[2]/div/div[2]/button/strong'
-                )
+             )
         )
     )
     accept_cookies.click()
@@ -229,7 +252,7 @@ try:
     search_pages_available = int(search_pages_available_E.find_elements(
         By.CSS_SELECTOR, 'a[class="btn btn-grey"]')[-1].text)
 except:
-    # in case of an exception that means that the search 
+    # in case of an exception that means that the search
     # have only one result page for that search
     search_pages_available = 1
 
@@ -241,15 +264,15 @@ pages_to_scrape = list(range(1, pages_to_scrape + 1))
 if len(pages_to_scrape) > search_pages_available:
     pages_to_scrape = pages_to_scrape[:search_pages_available + 1]
 
-# %% Primary Scraper variables 
+# %% Primary Scraper variables
 
-result_list =[]
+result_list = []
 """contains the scraped info from the primary stage"""
 
 results_scraped = 0
 """counts the scraped pages."""
 
-next = False 
+next = False
 """dictates if the primary scraper will starts scraping using the same response 
     used to get the results_available above or not
 """
@@ -258,53 +281,57 @@ next = False
 
 # this part "primary stage" scrapes each page and saves its outputs in csv file.
 # it scrapes the profiles names and the business names.
-if primary_stage == True or len(pages_to_scrape) > I_P:    
-    
+if primary_stage == True or len(pages_to_scrape) > I_P:
+
     # navigating to the page after the last page scraped to continue scraping it
     if build_upon_previous == True:
         page_acquired = False
-        
+
+        check_url = driver.current_url
+        """used to check that the driver is on the right page when a problem occurs."""
+
         # checks if the scraper starts from the last page it scraped.
         while page_acquired == False:
             # going to the next page through pressing the next button on the search results page
-            driver.switch_to.default_content()        
+            driver.switch_to.default_content()
             ActionChains(driver).send_keys(Keys.END).perform()
-            
-            pagination = WebDriverWait(driver, 20).until(
-                EC.presence_of_all_elements_located(
-                    (By.CSS_SELECTOR,'a[data-tracking="DISPLAY:PAGINATION:NUMBER"]')))
-            
+
+            pagination = crawler(
+                check_url, 'a[data-tracking="DISPLAY:PAGINATION:NUMBER"]', True)
+
             # checking the buttons to see which have the link to the desired page
             for button in pagination:
-                
+
                 if int(button.text) == I_P:
+                    check_url = button.get_attribute('href')
                     button.click()
                     driver.switch_to.default_content()
                     page_acquired = True
-                    
+
                 # if the desired page is not found then go to the last page then
                 # the loop will continue searching for the desired page again
-                # after going to the last page available in the pagination    
+                # after going to the last page available in the pagination
                 elif int(button.text) != I_P and button is pagination[-1]:
+                    check_url = button.get_attribute('href')
                     button.click()
                     driver.switch_to.default_content()
-            
-    # iterating through the result pages to scrape them    
-    for Page in tqdm(pages_to_scrape[I_P:] ,unit= "page", ncols = 110, colour= '#0A9092'): 
-        
-        # the result list of search results available on the page       
-        primary_info = WebDriverWait(driver, 20).until(
-            EC.presence_of_all_elements_located(
-                (By.CSS_SELECTOR,'div[class="row businessCapsule--mainRow"]')))
-        
+
+    # iterating through the result pages to scrape them
+    for Page in tqdm(pages_to_scrape[I_P:], unit="page", ncols=110, colour='#0A9092'):
+
+        # the result list of search results available on the page
+        primary_info = crawler(
+            check_url, 'div[class="row businessCapsule--mainRow"]', True)
+
         # iterates through the results
-        for P in primary_info :
+        for P in primary_info:
 
             # setting the scraped info to not available in case they are not found
             business = business_profile = catagories = phone = address = rating = reviews = "not available"
 
-            sleep(0.02)    
-            business_E = P.find_element(By.CSS_SELECTOR, 'a[class="businessCapsule--title"]')
+            sleep(0.02)
+            business_E = P.find_element(
+                By.CSS_SELECTOR, 'a[class="businessCapsule--title"]')
 
             # skipping the sponsored results
             try:
@@ -313,125 +340,133 @@ if primary_stage == True or len(pages_to_scrape) > I_P:
                 continue
             except:
                 pass
-             
+
             # business name
-            business = business_E.text 
-            
+            business = business_E.text
+
             # business's yell profile link
-            business_profile = business_E.get_attribute("href") 
-            
+            business_profile = business_E.get_attribute("href")
+
             # gets the business address
-            try: 
-                address = P.find_element(By.CSS_SELECTOR, 'span[itemprop="address"]').text 
+            try:
+                address = P.find_element(
+                    By.CSS_SELECTOR, 'span[itemprop="address"]').text
             except:
                 pass
-            
-            # the catagories that the business falls into         
+
+            # the catagories that the business falls into
             try:
-                catagories_E = P.find_element(By.CSS_SELECTOR, 'div[class="col-sm-17 col-md-16 col-lg-18 businessCapsule--classStrap"]')
+                catagories_E = P.find_element(
+                    By.CSS_SELECTOR, 'div[class="col-sm-17 col-md-16 col-lg-18 businessCapsule--classStrap"]')
                 catagories = catagories_E.text
             except:
                 pass
-               
-            # getting the phone number through pressing on the phone icon 
-            try:    
-                phone_E = P.find_element(By.CSS_SELECTOR, 'span[class="icon icon-phone business--telephoneIcon"]')
+
+            # getting the phone number through pressing on the phone icon
+            try:
+                phone_E = P.find_element(
+                    By.CSS_SELECTOR, 'span[class="icon icon-phone business--telephoneIcon"]')
                 phone_E.click()
                 # extracting the phone number
-                phone = P.find_element(By.CSS_SELECTOR, 'span.business--telephoneNumber').text
+                phone = P.find_element(
+                    By.CSS_SELECTOR, 'span.business--telephoneNumber').text
             except:
                 pass
-            
+
             # average rating by customers and the review count
             try:
-                rating = float(P.find_element(By.CSS_SELECTOR, 'span.starRating--average').text)
-                reviews = int(P.find_element(By.CSS_SELECTOR, 'span.starRating--total').text)
+                rating = float(P.find_element(By.CSS_SELECTOR,
+                               'span.starRating--average').text)
+                reviews = int(P.find_element(By.CSS_SELECTOR,
+                              'span.starRating--total').text)
             except:
                 pass
-            
-            
+
             # contains the scraped individual results
             result = {
                 "Business Name": business,
                 "Profile": business_profile,
                 "Catagories": catagories,
-                "Phone Number" :phone,
+                "Phone Number": phone,
                 "Address": address,
                 "Rating": rating,
                 "Reviews": reviews
-                }
-            
+            }
+
             # replaces empty strings in the result dict with "Not listed"
             for key, value in result.items():
                 if value == '':
                     result[key] = "Not Listed"
-                
+
             result_list.append(result)
-        
+
         results_scraped += len(result_list)
-        
-        p_save_index  += 1
-          
+
+        p_save_index += 1
+
         p_df = pd.DataFrame(result_list)
-        p_df.to_csv('./outputs/' + f"{website} {search_subject} in {search_location} {p_save_index} primary.csv", index= False)
+        p_df.to_csv(
+            './outputs/' + f"{website} {search_subject} in {search_location} {p_save_index} primary.csv", index=False)
 
         try:
-            file = open('./outputs/' + txt_tracker ,'a') 
+            file = open('./outputs/' + txt_tracker, 'a')
         except:
-            file = open('./outputs/' + txt_tracker ,'w') 
-    
+            file = open('./outputs/' + txt_tracker, 'w')
+
         if fist_scraped_page == True:
-            # writing the url of the first scraped page to use it later as a 
+            # writing the url of the first scraped page to use it later as a
             # start point if the the scraping didn't go wright from the first time
-            file.write(driver.current_url+"first_search_page") 
-            fist_scraped_page = False        
-                       
+            file.write(driver.current_url+"first_search_page")
+            fist_scraped_page = False
+
         file.write('\n')
-        file.write (f"{website} {search_subject} in {search_location} {p_save_index} primary.csv") 
+        file.write(
+            f"{website} {search_subject} in {search_location} {p_save_index} primary.csv")
         file.write('\n')
-        file.write(driver.current_url)   
-        file.close() 
-        
+        file.write(driver.current_url)
+        file.close()
+
         # emptying the result list after saving it's contents
         result_list = []
-        
-        
+
         I_P = Page
-        
+
         try:
             # going to the next page through pressing the next button on the search results page
-            driver.switch_to.default_content()        
+            driver.switch_to.default_content()
             ActionChains(driver).send_keys(Keys.END).perform()
-            
-            next_page = driver.find_element(By.CSS_SELECTOR,'a[data-tracking="DISPLAY:PAGINATION:NEXT"]')
+
+            next_page = driver.find_element(
+                By.CSS_SELECTOR, 'a[data-tracking="DISPLAY:PAGINATION:NEXT"]')
+            check_url = next_page.get_attribute('href')
             next_page.click()
             driver.switch_to.default_content()
         except:
             print('no more pages available !!')
             break
-        
-        
-    print(f"primary is done, {results_scraped + len(result_list)} results Scraped successfully !!")
-    
-    
+
+    print(
+        f"primary is done, {results_scraped + len(result_list)} results Scraped successfully !!")
+
+
 else:
     print('primary stage is already completed.')
-    
+
 # %% building the final DataFrame
 
 # building the end result DataFrame, inspect it's contents, save it as csv file
-# & delete the individually saved primary csv files used in it's construction 
+# & delete the individually saved primary csv files used in it's construction
 # along with the txt tracker file.
-    
+
 primary_df = df_builder(search_subject, search_location)
 
-print('\n' +3, primary_df.info(), '\n' *3)
+print('\n' + 3, primary_df.info(), '\n' * 3)
 
 print(primary_df.tail(), '\n')
 
 files = os.listdir('./outputs/')
 for file in files:
-    if 'primary' in file or txt_tracker in file :
+    if 'primary' in file or txt_tracker in file:
         os.remove('./outputs/' + file)
-        
+
 print('scraping is concluded successfully.')
