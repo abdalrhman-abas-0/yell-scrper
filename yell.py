@@ -294,12 +294,12 @@ next = False
 # it scrapes the profiles names and the business names.
 if primary_stage == True or len(pages_to_scrape) > I_P:
 
+    check_url = driver.current_url
+    """used to check that the driver is on the right page when a problem occurs."""
+
     # navigating to the page after the last page scraped to continue scraping it
     if build_upon_previous == True:
         page_acquired = False
-
-        check_url = driver.current_url
-        """used to check that the driver is on the right page when a problem occurs."""
 
         # checks if the scraper starts from the last page it scraped.
         while page_acquired == False:
@@ -442,8 +442,8 @@ if primary_stage == True or len(pages_to_scrape) > I_P:
 
         I_P = Page
 
+        # going to the next page through pressing the next button on the search results page
         try:
-            # going to the next page through pressing the next button on the search results page
             driver.switch_to.default_content()
             ActionChains(driver).send_keys(Keys.END).perform()
 
