@@ -40,6 +40,8 @@
 3. .csv files:
    a. primary files: individually scraped for each primary stage iteration.
    b. the final output file will be named in the following format ({site_name} {search_subject} in {search_location}.csv)
+   
+> after the scraping process is concluded successfully all the .csv primary files and the .txt tracker files will be deleted.
 
 ## Handling Interruptions:
 if the program got blocked by the scraped site "yell" or redirected to a bot detection test it will notify the developer and ask to solve it manually and ensure that the current page url matches the url in the notification "if given" and after the problem is resolved manually the developer must enter 'y' so that the program continues.
