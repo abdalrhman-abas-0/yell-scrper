@@ -131,13 +131,15 @@ def crawler(site: str, element: str, as_check_url: bool):
         while True:
             try:
                 driver.get(site)
-                try:
+                # if any of the given characters are 
+                # in element then use the css
+                if '.' in element or '#' in element or '=' in element :
                     key_element = WebDriverWait(driver, 20).until(
                         EC.presence_of_element_located(
                             (By.CSS_SELECTOR, element)
                         )
                     )
-                except:
+                else:
                     key_element = WebDriverWait(driver, 20).until(
                         EC.presence_of_element_located(
                             (By.ID, element)
@@ -171,8 +173,7 @@ def crawler(site: str, element: str, as_check_url: bool):
                 # to go directly to the exception without looking for the
                 # key_element
                 if waiting_time >= 10:
-                    print(
-                        throwing_an_error_on_purpose_as_the_current_url_dones_not_match_the_check_url)
+                    print(throwing_an_error_on_purpose)
 
                 # the result list of search results available on the page
                 key_element = WebDriverWait(driver, 10).until(
