@@ -17,9 +17,9 @@ Firefox_options.add_argument("--start-maximized")
 # %% Inputs.
 
 pages_to_scrape = 10
-record_file = 'no'
+record_file = "no"
 search_subject = "architects"
-search_location = 'london'
+search_location = "london"
 
 # %% defining the chrome browser
 
@@ -82,24 +82,21 @@ try:
         '''an txt file which records the progress of the scraping process'''
         for line in file:
 
-            # replaces\adds the page number to the url and add one to scrape the next page
-            if 'first_search_page' in line:
-                site = line.replace('first_search_page', f"&pageNum={I_P+1}")
-                fist_scraped_page = False
-
-            elif 'primary.csv' in line:
+            if 'primary.csv' in line:
                 # as every pages saved in it's own csv file the save index and
                 # the I_P which is the last page scraped successfully are the same
                 p_save_index = I_P = int(
                     re.search(f'(?!{search_location} )\d+', line)[0])
                 build_upon_previous = True
 
-            # ensuring that the end result file isn't constructed
+            # ensuring that the end result file isn't already saved.
             elif line.strip("\n") == f"{website} {search_subject} in {search_location}.csv":
                 build_upon_previous = False
 
+        fist_scraped_page = False
 except:
     pass
+
 # %% crawler Function
 
 
@@ -107,8 +104,10 @@ def crawler(site: str, element: str, as_check_url: bool):
     """ ensures that the correct page is landed on
     it can be used in to ways:
     first mode as_check_url = True:
-        it will look for the given element and if it's not found 
-        it will notify the developer to navigate to the given site
+        it will check for the current url if it matches the check_url 
+        "site" every second for 10 seconds then it will look for 
+        the given element and if it's not found it will notify the 
+        developer to navigate to the given site
     second mode as_check_url = False: 
         it will keeps making requests for the given site until landing
         on the desired page then, it knows that through looking for 
@@ -152,12 +151,33 @@ def crawler(site: str, element: str, as_check_url: bool):
                 while (input("browser problem please resolve it manually and enter'y'.")).lower() != 'y':
                     sleep(1)
     else:
+        check_url = site
         while True:
             try:
+                # waiting up to 10 seconds for the page to load before
+                # searching for the key_element
+                waiting_time = 0
+                while driver.current_url != check_url:
+                    print("current", driver.current_url)
+                    print("check", check_url)
+                    sleep(1)
+                    waiting_time += 1
+                    # breaking the loop after 11 seconds
+                    if waiting_time == 11:
+                        print("passed")
+                        break
+
+                # thronging an error if the waiting time exceeds 10 seconds
+                # to go directly to the exception without looking for the
+                # key_element
+                if waiting_time >= 10:
+                    print(
+                        throwing_an_error_on_purpose_as_the_current_url_dones_not_match_the_check_url)
+
                 # the result list of search results available on the page
-                key_element = WebDriverWait(driver, 20).until(
+                key_element = WebDriverWait(driver, 10).until(
                     EC.presence_of_all_elements_located(
-                        (By.CSS_SELECTOR, 'div[class="row businessCapsule--mainRow"]')))
+                        (By.CSS_SELECTOR, element)))
                 break
             except:
                 while (input(f"""browser problem please resolve it manually and ensure that the page url is \n "{site}" \n then enter'y' to continue.""")).lower() != 'y':
@@ -217,8 +237,7 @@ def df_builder(search_subject: str, search_location: str):
 
 
 # input the search_subject into the search_bar
-search_bar_id = 'search_keyword'
-search_bar = crawler(url, search_bar_id, False)
+search_bar = crawler(url, 'search_keyword', False)
 search_bar.click()
 search_bar.send_keys(search_subject)
 
@@ -268,7 +287,6 @@ except:
     search_pages_available = 1
 
 print(f'{search_pages_available} pages available.')
-site = driver.current_url
 
 pages_to_scrape = list(range(1, pages_to_scrape + 1))
 
@@ -288,6 +306,7 @@ next = False
     used to get the results_available above or not
 """
 
+
 # %% Primary Scraper
 
 # this part "primary stage" scrapes each page and saves its outputs in csv file.
@@ -301,7 +320,7 @@ if primary_stage == True or len(pages_to_scrape) > I_P:
     if build_upon_previous == True:
         page_acquired = False
 
-        # checks if the scraper starts from the last page it scraped.
+        # checks if the scraper starts from the page after the last page it scraped.
         while page_acquired == False:
             # going to the next page through pressing the next button on the search results page
             driver.switch_to.default_content()
@@ -310,19 +329,22 @@ if primary_stage == True or len(pages_to_scrape) > I_P:
             pagination = crawler(
                 check_url, 'a[data-tracking="DISPLAY:PAGINATION:NUMBER"]', True)
 
-            # checking the buttons to see which have the link to the desired page
+            # checking which pagination button directs the program to the desired page
             for button in pagination:
 
-                if int(button.text) == I_P:
+                # adding one to the I_P to scrape the page after the last
+                # scraped page
+                if int(button.text) == I_P + 1:
                     check_url = button.get_attribute('href')
                     button.click()
                     driver.switch_to.default_content()
                     page_acquired = True
+                    break
 
                 # if the desired page is not found then go to the last page then
                 # the loop will continue searching for the desired page again
                 # after going to the last page available in the pagination
-                elif int(button.text) != I_P and button is pagination[-1]:
+                elif button is pagination[-1]:
                     check_url = button.get_attribute('href')
                     button.click()
                     driver.switch_to.default_content()
@@ -330,44 +352,52 @@ if primary_stage == True or len(pages_to_scrape) > I_P:
     # iterating through the result pages to scrape them
     for Page in tqdm(pages_to_scrape[I_P:], unit="page", ncols=110, colour='#0A9092'):
 
-        # the result list of search results available on the page
+        # a list of all the info except the title and url for
+        # all the results available on the result page
         primary_info = crawler(
             check_url, 'div[class="row businessCapsule--mainRow"]', True)
 
-        # iterates through the results
-        for P in primary_info:
+        # a list of the business by title and url
+        business_titles = crawler(
+            check_url, 'a[class="businessCapsule--title"]', True)
 
-            # setting the scraped info to not available in case they are not found
-            business = business_profile = catagories = phone = address = rating = reviews = "not available"
+        sleep(1)
+
+        # iterates through the results
+        for info, title in zip(primary_info, business_titles):
 
             sleep(0.02)
-            business_E = P.find_element(
-                By.CSS_SELECTOR, 'a[class="businessCapsule--title"]')
-
             # skipping the sponsored results
             try:
-                business_E.find_element(
+                title.find_element(
                     By.CSS_SELECTOR, "p.businessCapsule--sponsored")
                 continue
             except:
                 pass
 
+            # setting the scraped info to not available in case they are not found
+            catagories = phone = address = rating = reviews = "not available"
+
             # business name
-            business = business_E.text
+            try:
+                business = title.find_element(
+                    By.CSS_SELECTOR, 'h2[class="businessCapsule--name text-h2"]') .text
+            except:
+                print(title.text)
 
             # business's yell profile link
-            business_profile = business_E.get_attribute("href")
+            business_profile = title.get_attribute("href")
 
             # gets the business address
             try:
-                address = P.find_element(
+                address = info.find_element(
                     By.CSS_SELECTOR, 'span[itemprop="address"]').text
             except:
                 pass
 
             # the catagories that the business falls into
             try:
-                catagories_E = P.find_element(
+                catagories_E = info.find_element(
                     By.CSS_SELECTOR, 'div[class="col-sm-17 col-md-16 col-lg-18 businessCapsule--classStrap"]')
                 catagories = catagories_E.text
             except:
@@ -375,20 +405,20 @@ if primary_stage == True or len(pages_to_scrape) > I_P:
 
             # getting the phone number through pressing on the phone icon
             try:
-                phone_E = P.find_element(
+                phone_E = info.find_element(
                     By.CSS_SELECTOR, 'span[class="icon icon-phone business--telephoneIcon"]')
                 phone_E.click()
                 # extracting the phone number
-                phone = P.find_element(
+                phone = info.find_element(
                     By.CSS_SELECTOR, 'span.business--telephoneNumber').text
             except:
                 pass
 
             # average rating by customers and the review count
             try:
-                rating = float(P.find_element(By.CSS_SELECTOR,
+                rating = float(info.find_element(By.CSS_SELECTOR,
                                'span.starRating--average').text)
-                reviews = int(P.find_element(By.CSS_SELECTOR,
+                reviews = int(info.find_element(By.CSS_SELECTOR,
                               'span.starRating--total').text)
             except:
                 pass
@@ -424,17 +454,19 @@ if primary_stage == True or len(pages_to_scrape) > I_P:
         except:
             file = open('./outputs/' + txt_tracker, 'w')
 
+        current_page = driver.current_url
+
         if fist_scraped_page == True:
             # writing the url of the first scraped page to use it later as a
             # start point if the the scraping didn't go wright from the first time
-            file.write(driver.current_url+"first_search_page")
+            current_page += "first_search_page"
             fist_scraped_page = False
 
         file.write('\n')
         file.write(
             f"{website} {search_subject} in {search_location} {p_save_index} primary.csv")
         file.write('\n')
-        file.write(driver.current_url)
+        file.write(current_page)
         file.close()
 
         # emptying the result list after saving it's contents
@@ -459,9 +491,10 @@ if primary_stage == True or len(pages_to_scrape) > I_P:
     print(
         f"primary is done, {results_scraped + len(result_list)} results Scraped successfully !!")
 
-
+    driver.quit()
 else:
     print('primary stage is already completed.')
+
 
 # %% building the final DataFrame
 
@@ -469,11 +502,11 @@ else:
 # & delete the individually saved primary csv files used in it's construction
 # along with the txt tracker file.
 
-primary_df = df_builder(search_subject, search_location)
+df = df_builder(search_subject, search_location)
 
-print('\n' + 3, primary_df.info(), '\n' * 3)
+print('\n' * 3, df.info(), '\n' * 3)
 
-print(primary_df.tail(), '\n')
+print(df.tail(), '\n')
 
 files = os.listdir('./outputs/')
 for file in files:
