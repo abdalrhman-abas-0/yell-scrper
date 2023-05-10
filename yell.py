@@ -415,12 +415,17 @@ if primary_stage == True or len(pages_to_scrape) > I_P:
             except:
                 pass
 
-            # average rating by customers and the review count
+            # average rating by customers
             try:
                 rating = float(info.find_element(By.CSS_SELECTOR,
                                'span.starRating--average').text)
-                reviews = int(info.find_element(By.CSS_SELECTOR,
-                              'span.starRating--total').text)
+            except:
+                pass
+            
+            # reviews count
+            try:
+                reviews = int(re.search(r"\d+",info.find_element(By.CSS_SELECTOR,
+                              'span.starRating--total').text)[0])
             except:
                 pass
 
